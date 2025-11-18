@@ -1,10 +1,47 @@
 import * as THREE from 'three';
 
+export interface CelestialBodyOptions {
+  name?: string;
+  mass?: number;
+  radius?: number;
+  position?: THREE.Vector3;
+  velocity?: THREE.Vector3;
+  color?: number;
+  emissive?: number;
+  emissiveIntensity?: number;
+  isStatic?: boolean;
+}
+
 /**
  * Represents a celestial body (planet or star) in the simulation
  */
 export class CelestialBody {
-  constructor(options = {}) {
+  // Physical properties
+  mass: number;
+  position: THREE.Vector3;
+  velocity: THREE.Vector3;
+  isStatic: boolean;
+
+  // Visual properties
+  radius: number;
+  color: number;
+  emissive: number;
+  emissiveIntensity: number;
+  name: string;
+
+  // Three.js objects
+  geometry: THREE.SphereGeometry;
+  material: THREE.MeshStandardMaterial;
+  mesh: THREE.Mesh;
+
+  // Trail for visualizing orbit
+  trail: THREE.Line | null;
+  trailPoints: THREE.Vector3[];
+  maxTrailPoints: number;
+  trailUpdateCounter: number;
+  trailUpdateInterval: number;
+
+  constructor(options: CelestialBodyOptions = {}) {
     // Physical properties
     this.mass = options.mass || 1.0;
     this.position = options.position || new THREE.Vector3(0, 0, 0);
@@ -42,14 +79,14 @@ export class CelestialBody {
   /**
    * Update the mesh position to match physics position
    */
-  updateMesh() {
+  updateMesh(): void {
     this.mesh.position.copy(this.position);
   }
 
   /**
    * Update visual properties
    */
-  updateVisuals() {
+  updateVisuals(): void {
     this.material.color.setHex(this.color);
     this.material.emissive.setHex(this.emissive);
     this.material.emissiveIntensity = this.emissiveIntensity;
@@ -58,7 +95,7 @@ export class CelestialBody {
   /**
    * Initialize trail rendering
    */
-  initTrail(scene) {
+  initTrail(scene: THREE.Scene): void {
     const trailGeometry = new THREE.BufferGeometry();
     const positions = new Float32Array(this.maxTrailPoints * 3);
     trailGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -78,7 +115,7 @@ export class CelestialBody {
   /**
    * Update trail with current position
    */
-  updateTrail() {
+  updateTrail(): void {
     if (!this.trail) return;
 
     this.trailUpdateCounter++;
@@ -94,7 +131,7 @@ export class CelestialBody {
     }
 
     // Update trail geometry
-    const positions = this.trail.geometry.attributes.position.array;
+    const positions = this.trail.geometry.attributes.position.array as Float32Array;
     for (let i = 0; i < this.maxTrailPoints; i++) {
       if (i < this.trailPoints.length) {
         const point = this.trailPoints[i];
@@ -117,7 +154,7 @@ export class CelestialBody {
   /**
    * Clear the trail
    */
-  clearTrail() {
+  clearTrail(): void {
     this.trailPoints = [];
     if (this.trail) {
       this.trail.geometry.setDrawRange(0, 0);
@@ -127,12 +164,18 @@ export class CelestialBody {
   /**
    * Dispose of resources
    */
-  dispose() {
+  dispose(): void {
     this.geometry.dispose();
     this.material.dispose();
     if (this.trail) {
       this.trail.geometry.dispose();
-      this.trail.material.dispose();
+      const material = this.trail.material;
+      if (Array.isArray(material)) {
+        material.forEach(m => m.dispose());
+      } else {
+        material.dispose();
+      }
     }
   }
 }
+

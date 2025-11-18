@@ -13,6 +13,17 @@ import './style.css';
  * Main application class
  */
 class PlanetSimulation {
+  scene: THREE.Scene | null;
+  camera: THREE.PerspectiveCamera | null;
+  renderer: THREE.WebGLRenderer | null;
+  controls: OrbitControls | null;
+  composer: EffectComposer | null;
+  physics: PhysicsEngine | null;
+  inputHandler: InputHandler | null;
+  uiManager: UIManager | null;
+  bodies: CelestialBody[];
+  clock: THREE.Clock;
+
   constructor() {
     this.scene = null;
     this.camera = null;
@@ -88,8 +99,8 @@ class PlanetSimulation {
 
     // Input handler
     this.inputHandler = new InputHandler(this.camera, this.renderer.domElement, this.scene);
-    this.inputHandler.onSelectionChange = (body) => {
-      this.uiManager.selectBody(body);
+    this.inputHandler.onSelectionChange = (body: CelestialBody | null) => {
+      this.uiManager!.selectBody(body);
     };
 
     // UI Manager
@@ -123,7 +134,7 @@ class PlanetSimulation {
     });
 
     const stars = new THREE.Points(starGeometry, starMaterial);
-    this.scene.add(stars);
+    this.scene!.add(stars);
   }
 
   /**
@@ -200,30 +211,30 @@ class PlanetSimulation {
   /**
    * Add a celestial body to the simulation
    */
-  addBody(body) {
+  addBody(body: CelestialBody): void {
     this.bodies.push(body);
-    this.scene.add(body.mesh);
-    body.initTrail(this.scene);
-    this.physics.addBody(body);
+    this.scene!.add(body.mesh);
+    body.initTrail(this.scene!);
+    this.physics!.addBody(body);
   }
 
   /**
    * Handle window resize
    */
-  onWindowResize() {
-    this.camera.aspect = window.innerWidth / window.innerHeight;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.composer.setSize(window.innerWidth, window.innerHeight);
+  onWindowResize(): void {
+    this.camera!.aspect = window.innerWidth / window.innerHeight;
+    this.camera!.updateProjectionMatrix();
+    this.renderer!.setSize(window.innerWidth, window.innerHeight);
+    this.composer!.setSize(window.innerWidth, window.innerHeight);
   }
 
   /**
    * Animation loop
    */
-  animate() {
+  animate(): void {
     requestAnimationFrame(() => this.animate());
 
-    const settings = this.uiManager.getSettings();
+    const settings = this.uiManager!.getSettings();
 
     // Update physics
     if (!settings.paused) {
@@ -231,10 +242,10 @@ class PlanetSimulation {
       const scaledDeltaTime = deltaTime * settings.timeScale;
 
       // Update gravitational constant
-      this.physics.G = settings.gravitationalConstant;
+      this.physics!.G = settings.gravitationalConstant;
 
       // Run physics simulation
-      this.physics.update(scaledDeltaTime);
+      this.physics!.update(scaledDeltaTime);
 
       // Update meshes and trails
       for (const body of this.bodies) {
@@ -246,10 +257,10 @@ class PlanetSimulation {
     }
 
     // Update controls
-    this.controls.update();
+    this.controls!.update();
 
     // Render with post-processing
-    this.composer.render();
+    this.composer!.render();
   }
 }
 

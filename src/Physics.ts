@@ -1,10 +1,14 @@
 import * as THREE from 'three';
+import type { CelestialBody } from './Body.js';
 
 /**
  * Physics engine for N-body gravitational simulation
  * Uses Symplectic Euler integration for better energy conservation
  */
 export class PhysicsEngine {
+  G: number;
+  bodies: CelestialBody[];
+
   constructor(gravitationalConstant = 1.0) {
     this.G = gravitationalConstant;
     this.bodies = [];
@@ -13,14 +17,14 @@ export class PhysicsEngine {
   /**
    * Add a body to the simulation
    */
-  addBody(body) {
+  addBody(body: CelestialBody): void {
     this.bodies.push(body);
   }
 
   /**
    * Remove a body from the simulation
    */
-  removeBody(body) {
+  removeBody(body: CelestialBody): void {
     const index = this.bodies.indexOf(body);
     if (index > -1) {
       this.bodies.splice(index, 1);
@@ -32,7 +36,7 @@ export class PhysicsEngine {
    * F = G * (m1 * m2) / r^2
    * Returns force vector acting on body1
    */
-  calculateGravityForce(body1, body2) {
+  calculateGravityForce(body1: CelestialBody, body2: CelestialBody): THREE.Vector3 {
     const direction = new THREE.Vector3().subVectors(body2.position, body1.position);
     const distanceSquared = direction.lengthSq();
 
@@ -62,7 +66,7 @@ export class PhysicsEngine {
   /**
    * Calculate total gravitational force on a body from all other bodies
    */
-  calculateTotalForce(body) {
+  calculateTotalForce(body: CelestialBody): THREE.Vector3 {
     const totalForce = new THREE.Vector3(0, 0, 0);
 
     for (const otherBody of this.bodies) {
@@ -80,9 +84,9 @@ export class PhysicsEngine {
    * This method is better than standard Euler for orbital mechanics
    * as it conserves energy better
    */
-  update(deltaTime) {
+  update(deltaTime: number): void {
     // Calculate all forces first
-    const forces = new Map();
+    const forces = new Map<CelestialBody, THREE.Vector3>();
     for (const body of this.bodies) {
       forces.set(body, this.calculateTotalForce(body));
     }
@@ -91,8 +95,8 @@ export class PhysicsEngine {
     for (const body of this.bodies) {
       if (body.isStatic) continue;
 
-      const force = forces.get(body);
-      const acceleration = force.divideScalar(body.mass);
+      const force = forces.get(body)!;
+      const acceleration = force.clone().divideScalar(body.mass);
       body.velocity.add(acceleration.multiplyScalar(deltaTime));
     }
 
@@ -109,7 +113,7 @@ export class PhysicsEngine {
   /**
    * Calculate total energy of the system (for debugging/testing)
    */
-  getTotalEnergy() {
+  getTotalEnergy(): number {
     let kineticEnergy = 0;
     let potentialEnergy = 0;
 
@@ -131,3 +135,4 @@ export class PhysicsEngine {
     return kineticEnergy + potentialEnergy;
   }
 }
+

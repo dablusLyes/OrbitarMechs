@@ -1,10 +1,22 @@
 import * as THREE from 'three';
+import type { CelestialBody } from './Body.js';
 
 /**
  * Handles mouse interaction for selecting and dragging celestial bodies
  */
 export class InputHandler {
-  constructor(camera, domElement, scene) {
+  camera: THREE.PerspectiveCamera;
+  domElement: HTMLElement;
+  scene: THREE.Scene;
+  raycaster: THREE.Raycaster;
+  mouse: THREE.Vector2;
+  selectedBody: CelestialBody | null;
+  isDragging: boolean;
+  dragPlane: THREE.Plane;
+  dragOffset: THREE.Vector3;
+  onSelectionChange: ((body: CelestialBody | null) => void) | null;
+
+  constructor(camera: THREE.PerspectiveCamera, domElement: HTMLElement, scene: THREE.Scene) {
     this.camera = camera;
     this.domElement = domElement;
     this.scene = scene;
@@ -31,7 +43,7 @@ export class InputHandler {
   /**
    * Update mouse coordinates
    */
-  updateMousePosition(event) {
+  updateMousePosition(event: MouseEvent): void {
     const rect = this.domElement.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -40,13 +52,13 @@ export class InputHandler {
   /**
    * Get the celestial body under the mouse cursor
    */
-  getBodyUnderMouse() {
+  getBodyUnderMouse(): CelestialBody | null {
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(this.scene.children, true);
 
     for (const intersect of intersects) {
       if (intersect.object.userData.body) {
-        return intersect.object.userData.body;
+        return intersect.object.userData.body as CelestialBody;
       }
     }
 
@@ -56,7 +68,7 @@ export class InputHandler {
   /**
    * Handle mouse down event
    */
-  onMouseDown(event) {
+  onMouseDown(event: MouseEvent): void {
     if (event.button !== 0) return; // Only left click
 
     this.updateMousePosition(event);
@@ -89,7 +101,7 @@ export class InputHandler {
   /**
    * Handle mouse move event
    */
-  onMouseMove(event) {
+  onMouseMove(event: MouseEvent): void {
     this.updateMousePosition(event);
 
     if (this.isDragging && this.selectedBody) {
@@ -115,7 +127,7 @@ export class InputHandler {
   /**
    * Handle mouse up event
    */
-  onMouseUp(event) {
+  onMouseUp(_event: MouseEvent): void {
     if (this.isDragging) {
       this.isDragging = false;
       // Optionally reset velocity when dropping
@@ -126,7 +138,7 @@ export class InputHandler {
   /**
    * Deselect current body
    */
-  deselect() {
+  deselect(): void {
     this.selectedBody = null;
     if (this.onSelectionChange) {
       this.onSelectionChange(null);
@@ -136,9 +148,10 @@ export class InputHandler {
   /**
    * Clean up event listeners
    */
-  dispose() {
+  dispose(): void {
     this.domElement.removeEventListener('mousedown', this.onMouseDown);
     this.domElement.removeEventListener('mousemove', this.onMouseMove);
     this.domElement.removeEventListener('mouseup', this.onMouseUp);
   }
 }
+

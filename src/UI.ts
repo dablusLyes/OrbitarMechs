@@ -1,11 +1,24 @@
 import { Pane } from 'tweakpane';
 import * as THREE from 'three';
+import type { CelestialBody } from './Body.js';
 
+interface Settings {
+  timeScale: number;
+  gravitationalConstant: number;
+  showTrails: boolean;
+  paused: boolean;
+}
 
 /**
  * Manages the UI panel for editing celestial body properties
  */
 export class UIManager {
+  pane: Pane;
+  selectedBody: CelestialBody | null;
+  bodyFolder: any; // Tweakpane folder type
+  globalFolder: any; // Tweakpane folder type
+  settings: Settings;
+
   constructor() {
     this.pane = new Pane({
       title: 'Planet Simulation',
@@ -30,8 +43,8 @@ export class UIManager {
   /**
    * Setup global simulation controls
    */
-  setupGlobalControls() {
-    this.globalFolder = this.pane.addFolder({
+  setupGlobalControls(): void {
+    this.globalFolder = (this.pane as any).addFolder({
       title: 'Global Settings',
       expanded: true
     });
@@ -66,7 +79,7 @@ export class UIManager {
   /**
    * Update UI to show selected body properties
    */
-  selectBody(body) {
+  selectBody(body: CelestialBody | null): void {
     // Remove previous body folder if exists
     if (this.bodyFolder) {
       this.bodyFolder.dispose();
@@ -78,7 +91,7 @@ export class UIManager {
     if (!body) return;
 
     // Create new folder for selected body
-    this.bodyFolder = this.pane.addFolder({
+    this.bodyFolder = (this.pane as any).addFolder({
       title: `Selected: ${body.name}`,
       expanded: true
     });
@@ -136,7 +149,7 @@ export class UIManager {
     });
 
     // Position
-    const posFolder = this.bodyFolder.addFolder({
+    const posFolder = (this.bodyFolder as any).addFolder({
       title: 'Position',
       expanded: false
     });
@@ -145,7 +158,7 @@ export class UIManager {
     posFolder.addBinding(body.position, 'z', { min: -100, max: 100 });
 
     // Velocity
-    const velFolder = this.bodyFolder.addFolder({
+    const velFolder = (this.bodyFolder as any).addFolder({
       title: 'Velocity',
       expanded: false
     });
@@ -169,14 +182,15 @@ export class UIManager {
   /**
    * Get current settings
    */
-  getSettings() {
+  getSettings(): Settings {
     return this.settings;
   }
 
   /**
    * Clean up
    */
-  dispose() {
+  dispose(): void {
     this.pane.dispose();
   }
 }
+
