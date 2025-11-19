@@ -21,6 +21,15 @@ export class UIManager {
   globalFolder: any; // Tweakpane folder type
   settings: Settings;
 
+  // Make settings accessible for direct modification
+  get paused(): boolean {
+    return this.settings.paused;
+  }
+
+  set paused(value: boolean) {
+    this.settings.paused = value;
+  }
+
   constructor() {
     this.pane = new Pane({
       title: 'Planet Simulation',

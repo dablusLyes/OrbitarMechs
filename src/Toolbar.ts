@@ -35,6 +35,15 @@ export class Toolbar {
     this.setupModeChangeListener();
   }
 
+  private onRestart: (() => void) | null = null;
+
+  /**
+   * Set callback for restart action
+   */
+  setOnRestart(callback: () => void): void {
+    this.onRestart = callback;
+  }
+
   /**
    * Create the toolbar DOM element
    */
@@ -52,6 +61,10 @@ export class Toolbar {
       this.buttons.set(config.mode, button);
     }
 
+    // Add restart button
+    const restartButton = this.createRestartButton();
+    buttonContainer.appendChild(restartButton);
+
     toolbar.appendChild(buttonContainer);
     document.body.appendChild(toolbar);
 
@@ -59,6 +72,39 @@ export class Toolbar {
     this.updateActiveButton(this.modeManager.currentMode);
 
     return toolbar;
+  }
+
+  /**
+   * Create restart button
+   */
+  private createRestartButton(): HTMLElement {
+    const button = document.createElement('button');
+    button.className = 'toolbar-button toolbar-button-action';
+
+    const icon = document.createElement('span');
+    icon.className = 'toolbar-icon';
+    icon.textContent = '🔄';
+
+    const label = document.createElement('span');
+    label.className = 'toolbar-label';
+    label.textContent = 'Restart';
+
+    const shortcut = document.createElement('span');
+    shortcut.className = 'toolbar-shortcut';
+    shortcut.textContent = '(R)';
+
+    button.appendChild(icon);
+    button.appendChild(label);
+    button.appendChild(shortcut);
+
+    // Add click handler
+    button.addEventListener('click', () => {
+      if (this.onRestart) {
+        this.onRestart();
+      }
+    });
+
+    return button;
   }
 
   /**

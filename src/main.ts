@@ -135,6 +135,9 @@ class PlanetSimulation {
 
     // Toolbar
     this.toolbar = new Toolbar(this.modeManager);
+    this.toolbar.setOnRestart(() => {
+      this.restart();
+    });
 
     // System Builder
     this.systemBuilder = new SystemBuilder();
@@ -209,6 +212,29 @@ class PlanetSimulation {
         event.preventDefault();
       } else if ((event.ctrlKey || event.metaKey) && (event.key.toLowerCase() === 'y' || (event.key.toLowerCase() === 'z' && event.shiftKey))) {
         this.redo();
+        event.preventDefault();
+      }
+
+      // Pause/Unpause with spacebar
+      if (event.key === ' ' && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
+        if (this.uiManager) {
+          this.uiManager.paused = !this.uiManager.paused;
+          // Update the Tweakpane binding to reflect the change
+          if (this.uiManager.globalFolder) {
+            const pausedBinding = this.uiManager.globalFolder.children.find((child: any) =>
+              child.key === 'paused'
+            );
+            if (pausedBinding) {
+              pausedBinding.refresh();
+            }
+          }
+        }
+        event.preventDefault();
+      }
+
+      // Restart simulation with R key
+      if (event.key.toLowerCase() === 'r' && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
+        this.restart();
         event.preventDefault();
       }
     });
@@ -541,6 +567,50 @@ class PlanetSimulation {
       }
 
       this.addBody(body, recordUndo);
+    }
+  }
+
+  /**
+   * Restart the simulation
+   */
+  restart(): void {
+    // Clear all bodies
+    const bodiesToRemove = [...this.bodies];
+    bodiesToRemove.forEach(body => {
+      this.deleteBody(body, false); // Don't record undo for clearing
+    });
+
+    // Clear undo/redo stack
+    if (this.undoManager) {
+      this.undoManager.clear();
+    }
+
+    // Reset clock
+    this.clock.start();
+
+    // Reset camera position
+    if (this.camera) {
+      this.camera.position.set(0, 100, 120);
+      if (this.controls) {
+        this.controls.reset();
+      }
+    }
+
+    // Recreate initial bodies
+    this.createInitialBodies(false); // Don't record initial bodies for undo
+
+    // Unpause if paused
+    if (this.uiManager) {
+      this.uiManager.paused = false;
+      // Update the Tweakpane binding
+      if (this.uiManager.globalFolder) {
+        const pausedBinding = this.uiManager.globalFolder.children.find((child: any) =>
+          child.key === 'paused'
+        );
+        if (pausedBinding) {
+          pausedBinding.refresh();
+        }
+      }
     }
   }
 

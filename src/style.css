@@ -758,6 +758,15 @@ canvas {
   color: #00ff44;
 }
 
+.toolbar-button-action {
+  border-color: #00ff88 !important;
+}
+
+.toolbar-button-action:hover {
+  border-color: #00ff00 !important;
+  background: rgba(0, 255, 0, 0.15) !important;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .toolbar {
