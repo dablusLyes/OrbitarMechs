@@ -1,17 +1,23 @@
 import * as THREE from 'three';
 import type { CelestialBody } from './Body.js';
+import { BarnesHutTree } from './BarnesHut.js';
 
 /**
  * Physics engine for N-body gravitational simulation
  * Uses Symplectic Euler integration for better energy conservation
+ * Supports Barnes-Hut algorithm for efficient force calculations
  */
 export class PhysicsEngine {
   G: number;
   bodies: CelestialBody[];
+  useBarnesHut: boolean;
+  barnesHutTheta: number; // Opening angle threshold (0.5 is typical)
 
-  constructor(gravitationalConstant = 1.0) {
+  constructor(gravitationalConstant = 1.0, useBarnesHut: boolean = true, barnesHutTheta: number = 0.5) {
     this.G = gravitationalConstant;
     this.bodies = [];
+    this.useBarnesHut = useBarnesHut;
+    this.barnesHutTheta = barnesHutTheta;
   }
 
   /**
@@ -65,8 +71,10 @@ export class PhysicsEngine {
 
   /**
    * Calculate total gravitational force on a body from all other bodies
+   * Uses direct calculation (Barnes-Hut is handled in update() for efficiency)
    */
   calculateTotalForce(body: CelestialBody): THREE.Vector3 {
+    // Direct calculation (more accurate for small numbers of bodies)
     const totalForce = new THREE.Vector3(0, 0, 0);
 
     for (const otherBody of this.bodies) {
@@ -87,8 +95,22 @@ export class PhysicsEngine {
   update(deltaTime: number): void {
     // Calculate all forces first
     const forces = new Map<CelestialBody, THREE.Vector3>();
+
+    // Build Barnes-Hut tree once per frame if using it
+    let tree: BarnesHutTree | null = null;
+    if (this.useBarnesHut && this.bodies.length > 2) {
+      const bounds = BarnesHutTree.calculateBounds(this.bodies, 10);
+      tree = new BarnesHutTree(this.bodies, bounds, this.barnesHutTheta);
+    }
+
     for (const body of this.bodies) {
-      forces.set(body, this.calculateTotalForce(body));
+      if (tree) {
+        // Use pre-built tree
+        forces.set(body, tree.calculateForce(body, this.G));
+      } else {
+        // Use direct calculation
+        forces.set(body, this.calculateTotalForce(body));
+      }
     }
 
     // Update velocities based on forces (v = v + a * dt)

@@ -7,6 +7,8 @@ interface Settings {
   gravitationalConstant: number;
   showTrails: boolean;
   paused: boolean;
+  useBarnesHut: boolean;
+  barnesHutTheta: number;
 }
 
 /**
@@ -34,7 +36,9 @@ export class UIManager {
       timeScale: 1.0,
       gravitationalConstant: 1.0,
       showTrails: true,
-      paused: false
+      paused: false,
+      useBarnesHut: true,
+      barnesHutTheta: 0.5
     };
 
     this.setupGlobalControls();
@@ -69,6 +73,17 @@ export class UIManager {
 
     this.globalFolder.addBinding(this.settings, 'paused', {
       label: 'Paused'
+    });
+
+    this.globalFolder.addBinding(this.settings, 'useBarnesHut', {
+      label: 'Use Barnes-Hut'
+    });
+
+    this.globalFolder.addBinding(this.settings, 'barnesHutTheta', {
+      label: 'BH Theta (accuracy)',
+      min: 0.1,
+      max: 1.0,
+      step: 0.1
     });
 
     this.globalFolder.addButton({
