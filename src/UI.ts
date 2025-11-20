@@ -20,6 +20,7 @@ export class UIManager {
   bodyFolder: any; // Tweakpane folder type
   globalFolder: any; // Tweakpane folder type
   settings: Settings;
+  onBodyPropertyChange: (() => void) | null = null;
 
   // Make settings accessible for direct modification
   get paused(): boolean {
@@ -160,6 +161,9 @@ export class UIManager {
       view: 'color'
     }).on('change', () => {
       body.updateVisuals();
+      if (this.onBodyPropertyChange) {
+        this.onBodyPropertyChange();
+      }
     });
 
     // Emissive intensity
@@ -170,6 +174,9 @@ export class UIManager {
       step: 0.01
     }).on('change', () => {
       body.updateVisuals();
+      if (this.onBodyPropertyChange) {
+        this.onBodyPropertyChange();
+      }
     });
 
     // Position

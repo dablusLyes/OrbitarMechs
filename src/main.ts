@@ -31,6 +31,10 @@ class PlanetSimulation {
   systemBuilder: SystemBuilder | null;
   bodies: CelestialBody[];
   clock: THREE.Clock;
+  fixedTimeStep: number;
+  accumulator: number;
+  sunPointLight: THREE.PointLight | null;
+  ambientLight: THREE.AmbientLight | null;
 
   constructor() {
     this.scene = null;
@@ -47,11 +51,17 @@ class PlanetSimulation {
     this.systemBuilder = null;
     this.bodies = [];
     this.clock = new THREE.Clock();
+    this.fixedTimeStep = 1 / 60; // 60 physics updates per second
+    this.accumulator = 0;
+    this.sunPointLight = null;
+    this.ambientLight = null;
 
     this.init();
     this.createStarfield();
     // Create initial bodies without recording for undo (they're part of initial state)
     this.createInitialBodies(false);
+    // Ensure lighting is set up after bodies are created
+    this.updateSunLighting();
     this.animate();
   }
 
@@ -87,13 +97,19 @@ class PlanetSimulation {
     this.controls.minDistance = 10;
     this.controls.maxDistance = 400;
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
-    this.scene.add(ambientLight);
+    // Lighting - will be updated based on Sun's properties
+    // Low ambient light for space atmosphere (visible dark sides)
+    this.ambientLight = new THREE.AmbientLight(0x333333, 0.5);
+    this.scene.add(this.ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    directionalLight.position.set(10, 10, 10);
-    this.scene.add(directionalLight);
+    // Sun light will be created after Sun is added
+    // Use PointLight for realistic radial emission from the star
+    // Distance of 0 means infinite range (no falloff), which works well for space
+    this.sunPointLight = new THREE.PointLight(0xffaa00, 3.0, 0, 0);
+    this.sunPointLight.position.set(0, 0, 0);
+    this.scene.add(this.sunPointLight);
+
+
 
     // Post-processing for bloom
     this.composer = new EffectComposer(this.renderer);
@@ -132,6 +148,9 @@ class PlanetSimulation {
 
     // UI Manager
     this.uiManager = new UIManager();
+    this.uiManager.onBodyPropertyChange = () => {
+      this.updateSunLighting();
+    };
 
     // Toolbar
     this.toolbar = new Toolbar(this.modeManager);
@@ -288,6 +307,9 @@ class PlanetSimulation {
         this.uiManager.selectBody(null);
       }
     }
+
+    // Update lighting if a star was removed
+    this.updateSunLighting();
   }
 
   /**
@@ -314,6 +336,7 @@ class PlanetSimulation {
       this.scene!.add(restoredBody.mesh);
       restoredBody.initTrail(this.scene!);
       this.physics!.addBody(restoredBody);
+      this.updateSunLighting();
     } else if (operation.type === UndoOperationType.ModifyBody) {
       // Undo modify: restore body properties
       const body = this.undoManager.findBodyById(this.bodies, operation.bodySnapshot.id);
@@ -337,6 +360,7 @@ class PlanetSimulation {
         body.isStatic = operation.bodySnapshot.isStatic;
         body.updateMesh();
         body.updateVisuals();
+        this.updateSunLighting();
       }
     }
   }
@@ -360,6 +384,7 @@ class PlanetSimulation {
       this.scene!.add(restoredBody.mesh);
       restoredBody.initTrail(this.scene!);
       this.physics!.addBody(restoredBody);
+      this.updateSunLighting();
     } else if (operation.type === UndoOperationType.RemoveBody) {
       // Redo remove: delete the body (don't record for undo since it's already in the stack)
       const body = this.undoManager.findBodyById(this.bodies, operation.bodySnapshot.id);
@@ -381,9 +406,15 @@ class PlanetSimulation {
     const positions = new Float32Array(starCount * 3);
 
     for (let i = 0; i < starCount * 3; i += 3) {
-      positions[i] = (Math.random() - 0.5) * 400;
-      positions[i + 1] = (Math.random() - 0.5) * 400;
-      positions[i + 2] = (Math.random() - 0.5) * 400;
+      // Generate stars in a spherical shell to keep the center clear
+      // Min radius 300, max radius 600
+      const r = 300 + Math.random() * 300;
+      const theta = 2 * Math.PI * Math.random();
+      const phi = Math.acos(2 * Math.random() - 1);
+
+      positions[i] = r * Math.sin(phi) * Math.cos(theta);
+      positions[i + 1] = r * Math.sin(phi) * Math.sin(theta);
+      positions[i + 2] = r * Math.cos(phi);
     }
 
     starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -504,6 +535,9 @@ class PlanetSimulation {
     if (recordUndo && this.undoManager) {
       this.undoManager.recordAddBody(body);
     }
+
+    // Update lighting if this is a star (high emissive intensity)
+    this.updateSunLighting();
   }
 
   /**
@@ -571,6 +605,48 @@ class PlanetSimulation {
   }
 
   /**
+   * Update sun lighting based on the brightest star in the scene
+   */
+  updateSunLighting(): void {
+    if (!this.sunPointLight) return;
+
+    // Find the brightest star (highest emissive intensity)
+    let brightestStar: CelestialBody | null = null;
+    let maxIntensity = 0;
+
+    for (const body of this.bodies) {
+      if (body.emissiveIntensity > maxIntensity) {
+        maxIntensity = body.emissiveIntensity;
+        brightestStar = body;
+      }
+    }
+
+    if (brightestStar) {
+      // Use the star's emissive color for the lights
+      const lightColor = new THREE.Color(brightestStar.emissive);
+
+      // Scale intensity based on emissive intensity and star size
+      // Larger, brighter stars emit more light
+      const baseIntensity = brightestStar.emissiveIntensity * 4.0;
+      const radiusMultiplier = 1.0 + brightestStar.radius * 0.3;
+      const intensity = baseIntensity * radiusMultiplier;
+      const finalIntensity = Math.max(2.0, Math.min(intensity, 10.0));
+
+      // Update PointLight (primary source)
+      this.sunPointLight.position.copy(brightestStar.position);
+      this.sunPointLight.color.copy(lightColor);
+      this.sunPointLight.intensity = finalIntensity;
+      // Distance of 0 means infinite (no falloff)
+      this.sunPointLight.distance = 0;
+      this.sunPointLight.decay = 0; // No physical falloff to ensure distant planets are lit
+    } else {
+      // No star found, use default dim lighting
+      this.sunPointLight.intensity = 0.3;
+      this.sunPointLight.color.setHex(0xffffff);
+    }
+  }
+
+  /**
    * Restart the simulation
    */
   restart(): void {
@@ -621,29 +697,38 @@ class PlanetSimulation {
     requestAnimationFrame(() => this.animate());
 
     const settings = this.uiManager!.getSettings();
+    const deltaTime = this.clock.getDelta();
 
-    // Update physics
     if (!settings.paused) {
-      const deltaTime = this.clock.getDelta();
-      const scaledDeltaTime = deltaTime * settings.timeScale;
+      this.accumulator += deltaTime;
 
-      // Update gravitational constant
+      // Update physics settings from UI
       this.physics!.G = settings.gravitationalConstant;
-
-      // Update Barnes-Hut settings
       this.physics!.useBarnesHut = settings.useBarnesHut;
       this.physics!.barnesHutTheta = settings.barnesHutTheta;
 
-      // Run physics simulation
-      this.physics!.update(scaledDeltaTime);
+      // Run physics simulation in fixed steps
+      while (this.accumulator >= this.fixedTimeStep) {
+        const scaledFixedTimeStep = this.fixedTimeStep * settings.timeScale;
+        this.physics!.update(scaledFixedTimeStep);
 
-      // Update meshes and trails
+        // Update trails for each physics step for smoothness
+        if (settings.showTrails) {
+          for (const body of this.bodies) {
+            body.updateTrail();
+          }
+        }
+
+        this.accumulator -= this.fixedTimeStep;
+      }
+
+      // Update meshes to their final positions for this frame
       for (const body of this.bodies) {
         body.updateMesh();
-        if (settings.showTrails) {
-          body.updateTrail();
-        }
       }
+
+      // Update sun lighting position and color
+      this.updateSunLighting();
     }
 
     // Update controls

@@ -78,7 +78,9 @@ export class CelestialBody {
       emissive: this.emissive,
       emissiveIntensity: this.emissiveIntensity,
       metalness: 0.3,
-      roughness: 0.7
+      roughness: 0.7,
+      // Ensure material responds to lights
+      flatShading: false
     });
 
     // Apply textures if provided
